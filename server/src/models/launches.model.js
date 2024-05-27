@@ -1,42 +1,58 @@
-// const launches = require("./launches.mongo");
+const launchesDatabase = require("./launches.mongo");
+const planets = require("./planets.mongo");
 
-const launches = new Map();
+const DEFAULT_FLIGHT_NUMBER = 100;
 
-let latestFlightNumber = 100;
+async function saveLaunch(launch) {
+  console.log(`Looking for planet with keplerName: ${launch.target}`);
+  const planet = await planets.findOne({
+    keplerName: launch.target,
+  });
 
-const launch = {
-  flightNumber: 100,
-  mission: "Kepler Exploration X",
-  rocket: "Explorer IS1",
-  launchDate: new Date("December 27. 2030"),
-  target: "Kepler-422 b",
-  customers: ["ZTM", "NASA"],
-  upcoming: true,
-  success: true,
-};
+  if (!planet) {
+    console.error(`No matching planet found for target: ${launch.target}`);
+    throw new Error("No matching planet found");
+  }
 
-launches.set(launch.flightNumber, launch);
+  await launchesDatabase.updateOne(
+    {
+      flightNumber: launch.flightNumber,
+    },
+    launch,
+    {
+      upsert: true,
+    }
+  );
+}
 
-// check if launch exist function
+async function getLatestFlightNumber() {
+  const latestLaunch = await launchesDatabase.findOne().sort("-flightNumber");
+
+  if (!latestLaunch) {
+    return DEFAULT_FLIGHT_NUMBER;
+  }
+
+  return latestLaunch.flightNumber;
+}
+
+async function getAllLaunches() {
+  return await launchesDatabase.find({}, { _id: 0, __v: 0 });
+}
+
 function existsLaunchWithId(launchId) {
   return launches.has(launchId);
 }
 
-function getAllLaunches() {
-  return Array.from(launches.values());
-}
+async function addNewLaunch(launch) {
+  const latestFlightNumber = (await getLatestFlightNumber()) + 1;
+  const newLaunch = Object.assign(launch, {
+    success: true,
+    upcoming: true,
+    customers: ["Vinyl Space Data", "NASA"],
+    flightNumber: latestFlightNumber,
+  });
 
-function addNewLaunch(launch) {
-  latestFlightNumber++;
-  launches.set(
-    launch.flightNumber,
-    Object.assign(launch, {
-      success: true,
-      upcoming: true,
-      customers: ["Vinyl Space Data", "NASA"],
-      flightNumber: latestFlightNumber,
-    })
-  );
+  await saveLaunch(newLaunch);
 }
 
 function abortLaunchById(launchId) {
