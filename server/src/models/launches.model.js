@@ -43,6 +43,11 @@ async function populateLaunches() {
     },
   });
 
+  if (response.status !== 200) {
+    console.log("Problem downloading launch data");
+    throw new Error("Launch data download failed");
+  }
+
   const launchDocs = response.data.docs;
   for (const lauchDoc of launchDocs) {
     const payloads = lauchDoc["payloads"];
@@ -62,7 +67,7 @@ async function populateLaunches() {
 
     console.log(`${launch.flightNumber} ${launch.mission}`);
 
-    // populate
+    await saveLaunch(launch);
   }
 }
 
@@ -92,16 +97,6 @@ async function existsLaunchWithId(launchId) {
 }
 
 async function saveLaunch(launch) {
-  console.log(`Looking for planet with keplerName: ${launch.target}`);
-  const planet = await planets.findOne({
-    keplerName: launch.target,
-  });
-
-  if (!planet) {
-    console.error(`No matching planet found for target: ${launch.target}`);
-    throw new Error("No matching planet found");
-  }
-
   await launchesDatabase.findOneAndUpdate(
     {
       flightNumber: launch.flightNumber,
@@ -129,6 +124,13 @@ async function getAllLaunches() {
 }
 
 async function addNewLaunch(launch) {
+  const planet = await planets.findOne({
+    keplerName: launch.target,
+  });
+
+  if (!planet) {
+    throw new Error("No matching planet found");
+  }
   const latestFlightNumber = await getLatestFlightNumber();
   const newFlightNumber = latestFlightNumber + 1;
 
