@@ -5,16 +5,12 @@ const {
   abortLaunchById,
 } = require("../../models/launches.model");
 
+const { getPagination } = require("../../services/query");
+
 async function httpGetAllLaunches(req, res) {
-  try {
-    const launches = await getAllLaunches();
-    return res.status(200).json(launches);
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      error: "Failed to retrieve launches",
-    });
-  }
+  const { skip, limit } = getPagination(req.query);
+  const launches = await getAllLaunches();
+  return res.status(200).json(launches);
 }
 
 async function httpAddNewLaunch(req, res) {
