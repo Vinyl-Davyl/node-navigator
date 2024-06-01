@@ -36,8 +36,8 @@ async function populateLaunches() {
   }
 
   const launchDocs = response.data.docs;
-  for (const lauchDoc of launchDocs) {
-    const payloads = lauchDoc["payloads"];
+  for (const launchDoc of launchDocs) {
+    const payloads = launchDoc["payloads"];
     const customers = payloads.flatMap((payload) => {
       return payload["customers"];
     });
@@ -64,7 +64,6 @@ async function loadLaunchData() {
     rocket: "Falcon 1",
     mission: "FalconSat",
   });
-
   if (firstLaunch) {
     console.log("Launch data already loaded!");
   } else {
@@ -76,11 +75,28 @@ async function findLaunch(filter) {
   return await launchesDatabase.findOne(filter);
 }
 
-// Check if launch exists function
 async function existsLaunchWithId(launchId) {
   return await findLaunch({
     flightNumber: launchId,
   });
+}
+
+async function getLatestFlightNumber() {
+  const latestLaunch = await launchesDatabase.findOne().sort("-flightNumber");
+
+  if (!latestLaunch) {
+    return DEFAULT_FLIGHT_NUMBER;
+  }
+
+  return latestLaunch.flightNumber;
+}
+
+async function getAllLaunches(skip, limit) {
+  return await launchesDatabase
+    .find({}, { _id: 0, __v: 0 })
+    .sort({ flightNumber: 1 })
+    .skip(skip)
+    .limit(limit);
 }
 
 async function saveLaunch(launch) {
@@ -95,27 +111,7 @@ async function saveLaunch(launch) {
   );
 }
 
-async function getLatestFlightNumber() {
-  // Sort flight number from highest to lowest hence the minus
-  const latestLaunch = await launchesDatabase.findOne().sort("-flightNumber");
-
-  if (!latestLaunch) {
-    return DEFAULT_FLIGHT_NUMBER;
-  }
-
-  return latestLaunch.flightNumber;
-}
-
-// limits and skip to paginate API, and sort with ascending  values
-async function getAllLaunches(skip, limit) {
-  return await launchesDatabase
-    .find({}, { _id: 0, __v: 0 })
-    .sort({ flightNumber: 1 })
-    .skip(skip)
-    .limit(limit);
-}
-
-async function addNewLaunch(launch) {
+async function scheduleNewLaunch(launch) {
   const planet = await planets.findOne({
     keplerName: launch.target,
   });
@@ -123,8 +119,8 @@ async function addNewLaunch(launch) {
   if (!planet) {
     throw new Error("No matching planet found");
   }
-  const latestFlightNumber = await getLatestFlightNumber();
-  const newFlightNumber = latestFlightNumber + 1;
+
+  const newFlightNumber = (await getLatestFlightNumber()) + 1;
 
   const newLaunch = Object.assign(launch, {
     success: true,
@@ -147,13 +143,13 @@ async function abortLaunchById(launchId) {
     }
   );
 
-  return aborted.ok === 1 && aborted.nModified === 1;
+  return aborted.modifiedCount === 1;
 }
 
 module.exports = {
-  existsLaunchWithId,
   loadLaunchData,
+  existsLaunchWithId,
   getAllLaunches,
-  addNewLaunch,
+  scheduleNewLaunch,
   abortLaunchById,
 };
