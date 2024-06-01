@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.use("/v1", api);
 // app.use("/v2", V2Router);
 
-// Serves index.html for server run 8001 to run client code on browser
+// Serves index.html for server run 8000 to run client code on browser
 app.get("/*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
